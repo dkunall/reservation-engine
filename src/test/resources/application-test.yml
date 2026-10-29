@@ -1,0 +1,23 @@
+# Test profile. Datasource is injected by AbstractPostgresIT (Testcontainers or external Postgres).
+reservation:
+  scheduling:
+    enabled: false
+  jwt:
+    # test-only secret, not used anywhere else
+    secret: test-only-hmac-secret-0123456789-abcdefghijklmnop
+  hold:
+    default-ttl: PT10M
+  payment:
+    reconcile-after: PT0S
+
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 2
+
+logging:
+  level:
+    root: WARN
+    com.reservation.engine: WARN
+    org.testcontainers: INFO
