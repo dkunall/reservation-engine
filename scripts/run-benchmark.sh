@@ -20,8 +20,9 @@ BENCH_DB_URL=${BENCH_DB_URL:-jdbc:postgresql://localhost:5432/reservation_bench}
 BENCH_DB_USER=${BENCH_DB_USER:-postgres}
 BENCH_DB_PASSWORD=${BENCH_DB_PASSWORD:-postgres}
 
-if command -v pg_isready >/dev/null && ! pg_isready -h localhost -p 5432 -q; then
-  echo "PostgreSQL is not accepting connections on localhost:5432. Start it first, e.g.:" >&2
+BENCH_PG_PORT=$(sed -E "s|.*:([0-9]+)/.*|\1|" <<<"$BENCH_DB_URL")
+if command -v pg_isready >/dev/null && ! pg_isready -h localhost -p "$BENCH_PG_PORT" -q; then
+  echo "PostgreSQL is not accepting connections on localhost:$BENCH_PG_PORT. Start it first, e.g.:" >&2
   echo "  sudo pg_ctlcluster 17 main start   (or: docker compose up -d postgres)" >&2
   exit 1
 fi
