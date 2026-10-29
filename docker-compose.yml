@@ -30,6 +30,8 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-reservation}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>= 32 bytes)}
       SPRING_PROFILES_ACTIVE: json
+      HOLD_DEFAULT_TTL: ${HOLD_DEFAULT_TTL:-PT10M}
+      RESERVATION_EXPIRY_SWEEPINTERVAL: ${EXPIRY_SWEEP_INTERVAL:-PT15S}
     ports:
       - "${APP_PORT:-7400}:8080"
     stop_grace_period: 30s
