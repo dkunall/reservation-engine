@@ -1,0 +1,5 @@
+# spring-webmvc 6.2.x: fixes only exist in Spring Framework 7 (Boot 4).
+# Neither affected feature is used here (no XsltView, no SSE view fragments).
+# Revisit when moving to Boot 4.
+CVE-2026-47884
+CVE-2026-47890
