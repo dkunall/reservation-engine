@@ -1,23 +1,38 @@
-# Local PostgreSQL for running the engine (and its integration tests) without Testcontainers.
-# Dev-only credentials; override via env for anything shared.
+# Local stack: Postgres + the engine. Dev-only credentials, override via .env for anything shared.
+#   JWT_SECRET=$(openssl rand -base64 48) docker compose up -d --build
+name: reservation
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: reservation-postgres
     environment:
       POSTGRES_DB: reservation
       POSTGRES_USER: ${POSTGRES_USER:-reservation}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reservation}
     ports:
-      - "5432:5432"
+      - "${PG_PORT:-55470}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/10-init-test-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reservation} -d reservation"]
       interval: 5s
       timeout: 3s
       retries: 10
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/reservation
+      DB_USER: ${POSTGRES_USER:-reservation}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-reservation}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>= 32 bytes)}
+      SPRING_PROFILES_ACTIVE: json
+    ports:
+      - "${APP_PORT:-7400}:8080"
+    stop_grace_period: 30s
 
 volumes:
   pgdata:

@@ -38,6 +38,8 @@ spring:
   threads:
     virtual:
       enabled: false
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:20s}
 
 server:
   port: ${PORT:8080}
