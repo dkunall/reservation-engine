@@ -197,12 +197,12 @@ sequenceDiagram
 - **All or nothing** is simply one database transaction; no compensation logic.
 - **Deadlock avoidance**: every itinerary allocates its items in the same global order. Strategies whose allocation
   locks a shared hot row (CAPACITY, TIME_SLOT counters) report `lockOrderRank() = 1`, so those locks are taken
-  **last** and held for the shortest time (measured: see docs/PERFORMANCE.md). Two items on the same unit resource
+  **last** and held for the shortest time. Two items on the same unit resource
   could still interleave unit locks in theory; PostgreSQL then aborts one transaction (40P01) and
   `LockConflictRetry` re-runs the whole attempt (claim + transaction); the same happens on a lock timeout (55P03).
-  In the concurrency tests and benchmark runs no deadlock was recorded (`pg_stat_database.deadlocks` delta 0); lock
-  timeouts did occur with a 50-connection pool queueing on one hot row and were retried successfully (observed in
-  the benchmark, docs/PERFORMANCE.md section 6).
+  In the concurrency tests and benchmark runs no deadlock was recorded (`pg_stat_database.deadlocks` delta 0). Lock
+  timeouts can still happen when a big connection pool queues on one hot row; those are retried the same way
+  (`LockTimeoutTranslationIT` covers the 409 mapping).
 - **Confirm** (`/itineraries/{id}/confirm`): exactly the single-reservation pattern with ONE payment for the total:
   tx#1 locks the itinerary row then its items (id order), moves all to PAYMENT_PENDING and inserts one itinerary
   CHARGE; the provider is called with no transaction open; tx#2 (`ItineraryPaymentFinalizer`) applies the outcome
@@ -404,3 +404,7 @@ paths both yield `PessimisticLockingFailureException` → 409 / whole-transactio
 - Sharded capacity: the bucket count is cached per resource in memory (it is immutable once provisioned); the cache
   is unbounded, which is fine for thousands of resources but should become an LRU for millions.
 - `LockConflictRetry` wraps only the itinerary create endpoint; other endpoints surface a deadlock/lock timeout as 409.
+- Auth is a shared HS256 secret. A real deployment should validate tokens from an IdP via JWKS (only the
+  `JwtDecoder` bean changes).
+- No rate limiting or per-user quotas; that is expected to live in a gateway in front of the service.
+- Domain entities carry JPA annotations, so the domain package is not framework-free (ArchUnit only keeps Spring out).
