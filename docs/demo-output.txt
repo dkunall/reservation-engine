@@ -1,0 +1,61 @@
+
+== health
+{"status":"UP"}
+no token -> 401
+
+== event GA: hold -> confirm -> cancel
+hold: 201 {"status":"HELD","quantity":2,"total":{"amount":99.98,"currency":"USD"},"holdExpiresAt":"2026-10-29T18:16:24.690653258Z"}
+confirm: 200 CONFIRMED
+same key again: 200, replayed=true
+same key, different body: 422 Unprocessable Entity: Idempotency-Key was already used with a different request payload
+cancel: 200 {"status":"CANCELLED","cancelledAt":"2026-10-29T18:08:25.003051356Z"}
+bob reads alice's reservation: 403
+
+== validation and payment errors (RFC 7807)
+bad body: 400 {"type":"urn:problem-type:reservation:bad_request","status":400,"detail":"Request validation failed"}
+declined card: 402 {"title":"Payment Required","status":402,"detail":"Payment declined for reservation 88f8babb-9b06-4e17-af09-99f3bae1138a; reservation is now HELD"}
+
+== flight seat 1A: 30 concurrent holds
+results:  1 201, 29 409,
+
+== hotel room: overlapping stays
+alice 10-12 Dec: 201 total={"amount":240.00,"currency":"EUR"}
+bob 11-13 Dec (overlaps): 409 Conflict: Not enough units available for 2026-12-11T14:00:00Z - 2026-12-13T11:00:00Z
+bob 12-14 Dec (back to back): 201
+
+== itinerary: flight + hotel + bus, all or nothing
+alice: 201 {"status":"HELD","total":{"amount":10500.00,"currency":"INR"},"items":3}
+bob, same seat: 409 Conflict: Itinerary rejected, nothing was held: Units already reserved: 1A
+bus seats left after bob's failed itinerary: {"capacity":40,"availableQuantity":38}
+confirm itinerary: 200 CONFIRMED
+
+== waitlist: sold out -> join -> auto-promoted on cancel
+bob when sold out: 409
+bob joins waitlist: 201 WAITING
+bob's entry: {"status":"PROMOTED","promotedReservationId":"e3990d9c-a85c-4e02-aaf7-d26641e1db23"}
+
+== hold expiry
+alice's hotel hold before: HELD
+after waiting: EXPIRED
+bob retries the freed dates: 201
+
+== correlation id and metrics
+X-Correlation-Id: demo-123
+reservation_cancellations_total{application="reservation-engine",type="EVENT_GA"} 2.0
+reservation_confirm_duration_seconds_count{application="reservation-engine"} 2
+reservation_confirm_duration_seconds_max{application="reservation-engine"} 0.065002393
+reservation_confirm_duration_seconds_sum{application="reservation-engine"} 0.103821739
+reservation_confirms_total{application="reservation-engine",outcome="confirmed",type="EVENT_GA"} 1.0
+reservation_confirms_total{application="reservation-engine",outcome="declined",type="EVENT_GA"} 1.0
+reservation_conflicts_total{application="reservation-engine",model="CAPACITY",operation="hold",type="EVENT_GA"} 2.0
+reservation_conflicts_total{application="reservation-engine",model="EXCLUSIVE_UNIT",operation="hold",type="FLIGHT"} 30.0
+reservation_conflicts_total{application="reservation-engine",model="TIME_RANGE",operation="hold",type="HOTEL_ROOM"} 1.0
+reservation_expiries_total{application="reservation-engine",type="HOTEL_ROOM"} 2.0
+reservation_hold_duration_seconds_count{application="reservation-engine"} 38
+reservation_hold_duration_seconds_max{application="reservation-engine"} 0.046509231
+reservation_hold_duration_seconds_sum{application="reservation-engine"} 0.30924699
+reservation_holds_total{application="reservation-engine",model="CAPACITY",result="created",type="BUS"} 1.0
+reservation_holds_total{application="reservation-engine",model="CAPACITY",result="created",type="EVENT_GA"} 4.0
+reservation_holds_total{application="reservation-engine",model="EXCLUSIVE_UNIT",result="created",type="FLIGHT"} 2.0
+reservation_holds_total{application="reservation-engine",model="TIME_RANGE",result="created",type="HOTEL_ROOM"} 4.0
+reservation_idempotency_replays_total{application="reservation-engine",operation="CONFIRM_RESERVATION"} 1.0
